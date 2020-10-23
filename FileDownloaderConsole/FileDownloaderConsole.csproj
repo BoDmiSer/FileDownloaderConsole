@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Downloader.cs" />
     <Compile Include="IFileDownloader.cs" />
     <Compile Include="PhotoFile.cs" />
     <Compile Include="Program.cs" />

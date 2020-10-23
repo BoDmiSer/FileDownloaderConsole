@@ -9,6 +9,6 @@ namespace FileDownloaderConsole
     interface IFileDownloader
     {
         void SetDereeOfParallelism(int? degreeOfParallelism);
-        void AddFileToDownloadingQueue(string fileID, string url, string pathToSave);
+        void AddFileToDownloadingQueue(int fileID, string url, string pathToSave);
     }
 }
