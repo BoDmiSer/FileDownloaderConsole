@@ -11,55 +11,49 @@ namespace FileDownloaderConsole
 {
     public class Downloader : IFileDownloader
     {
+        #region Fields
+        private static Queue<PhotoFile> _urlQueue = new Queue<PhotoFile>();
+        private static HttpClient _client = new HttpClient();
         private int? _maxcountDownload;
-        private static List<PhotoFile> _urlList;
         public event Action<string> OnDownloaded;
         public event Action<string> OnFailed;
-        private static HttpClient _client = new HttpClient();
         private static SemaphoreSlim _semaphore;
-        public Downloader()
-        {
-            _urlList = new List<PhotoFile>();
-        }
+        #endregion
 
+        #region Methods
         public async Task Downloads()
         {
-            using (var semaphore = _semaphore)
+            var photo = _urlQueue.Dequeue();
+            await _semaphore.WaitAsync();
+            try
             {
-                var task = _urlList.Select(async photo =>
+                using (var result = await _client.GetAsync(photo.Url))
                 {
-                    await _semaphore.WaitAsync();
-                    try
+                    if (result.IsSuccessStatusCode)
                     {
-                        using (var result = await _client.GetAsync(photo.Url))
+                        using (var fileStream = await Task.Run(() => File.Create(photo.PathToSave + photo.Id + ".jpg")))
                         {
-                            if (result.IsSuccessStatusCode)
-                            {
-                                using (var fileStream = await Task.Run(() => File.Create(photo.PathToSave + photo.Id + ".jpg")))
-                                {
-                                    var content = await result.Content.ReadAsStreamAsync();
-                                    await content.CopyToAsync(fileStream);
-                                    CheckDownload(photo.Url+" "+photo.Id.ToString()+" "+result.StatusCode.ToString());
-                                }
-                            }
+                            var content = await result.Content.ReadAsStreamAsync();
+                            await content.CopyToAsync(fileStream);
+                            CheckDownload(photo.Url + " " + photo.Id.ToString() + " " + result.StatusCode.ToString());
                         }
                     }
-                    catch (Exception e)
-                    {
-                        CheckFailed(photo.Url + " "+photo.Id.ToString() + " " + e.Message.ToString());
-                    }
-                    finally
-                    {
-                        _semaphore.Release();
-                    }
-                });
-                await Task.WhenAll(task);
+                }
+            }
+            catch (Exception e)
+            {
+                CheckFailed(photo.Url + " " + photo.Id.ToString() + " " + e.Message.ToString());
+            }
+            finally
+            {
+                _semaphore.Release();
             }
         }
 
         public void AddFileToDownloadingQueue(int fileID, string url, string pathToSave)
         {
-            _urlList.Add(new PhotoFile() { Id = fileID, Url = url, PathToSave = pathToSave });
+            _urlQueue.Enqueue(new PhotoFile() { Id = fileID, Url = url, PathToSave = pathToSave });
+            Task.Run(async () => await Downloads());
         }
 
         public void SetDereeOfParallelism(int? degreeOfParallelism)
@@ -74,6 +68,9 @@ namespace FileDownloaderConsole
                 _semaphore = new SemaphoreSlim(4);
             }
         }
+        #endregion
+
+        #region Events
         public void CheckDownload(string str)
         {
             OnDownloaded?.Invoke(str);
@@ -82,5 +79,6 @@ namespace FileDownloaderConsole
         {
             OnFailed?.Invoke(str);
         }
+        #endregion
     }
 }

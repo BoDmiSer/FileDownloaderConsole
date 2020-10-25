@@ -10,5 +10,7 @@ namespace FileDownloaderConsole
     {
         void SetDereeOfParallelism(int? degreeOfParallelism);
         void AddFileToDownloadingQueue(int fileID, string url, string pathToSave);
+        event Action<string> OnDownloaded;
+        event Action<string> OnFailed;
     }
 }
